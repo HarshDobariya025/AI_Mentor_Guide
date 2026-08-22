@@ -10,12 +10,6 @@ const isProtectedRoute = createRouteMatcher([
 ]);
 
 export default clerkMiddleware(async (auth, req) => {
-  // Defense-in-depth: block CVE-2025-29927 middleware bypass header
-  // This header can be used to skip middleware checks in vulnerable Next.js versions
-  if (req.headers.has("x-middleware-subrequest")) {
-    return new NextResponse(null, { status: 403 });
-  }
-
   const { userId } = await auth();
 
   if (!userId && isProtectedRoute(req)) {

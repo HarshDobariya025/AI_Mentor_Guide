@@ -1,0 +1,33 @@
+npx shadcn@latest add accordion badge alert-dialog card dialog dropdown-menu input label progress radio-group select sonner tabs textarea
+npm install next-themes
+
+//imgest
+npm i inngest
+npx inngest-cli@latest dev
+
+// local database
+npx prisma studio
+
+//database
+npm i -D prisma  // database
+npx prisma migrate dev --name create-models // push these schema to database,  do this when all schemas are ready
+npx prisma migrate dev --name delete-ChatMessage-model  // to delete any schema or model
+
+//onboarding
+npm i react-hook-form zod @hookform/resolvers       //@@hookform/resolvers makes sure that previous  to works
+
+//Geminie api -> used in actions - dashboard.js
+npm i @google/generative-ai 
+
+//for loading indicator - used in dashobard layout.jsx
+npm i react-spinners
+
+//dashboard-view.jsx
+npm i date-fns              //for date
+npm install recharts        //for charts
+
+//markdown editor & html2pdf  - used in resume
+npm i @uiw/react-md-editor
+npm i html2pdf
+
+@/actions/chatBot

@@ -59,6 +59,12 @@ const Header = async () => {
                       Interview Prep
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Link href={"/roadmap"} className="flex items-center gap-2">
+                      <StarsIcon className="h-4 w-4 text-primary"/>
+                      Career Roadmap
+                  </Link>
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </SignedIn>

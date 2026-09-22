@@ -33,6 +33,7 @@ model User {
   assessments   Assessment[]
   resume        Resume?
   coverLetter   CoverLetter[]
+  roadmap       Roadmap?
 }
 
 model Assessment {
@@ -114,5 +115,19 @@ enum MarketOutlook{
   POSITIVE
   NEUTRAL
   NEGATIVE
+}
+
+model Roadmap {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  targetRole      String
+  targetLevel     String    // "Entry", "Mid", "Senior", "Lead"
+  timeframe       String    // e.g. "3 months", "6 months", "12 months"
+  markdownContent String    @db.Text
+  checklistData   Json      // Array of phases with milestone items
+  progress        Float     @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 

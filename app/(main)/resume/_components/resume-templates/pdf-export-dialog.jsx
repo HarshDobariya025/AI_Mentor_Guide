@@ -138,8 +138,8 @@ export default function PdfExportDialog({ markdownContent, candidateName = "Cand
           </style>
         </head>
         <body>
-          <div class="resume-print-wrapper">
-            ${element.innerHTML}
+          <div class="resume-print-wrapper" style="width: 794px; margin: 0 auto;">
+            ${element.outerHTML}
           </div>
           <script>
             window.onload = function() {
@@ -176,8 +176,8 @@ export default function PdfExportDialog({ markdownContent, candidateName = "Cand
       iframe.style.position = "fixed";
       iframe.style.left = "-9999px";
       iframe.style.top = "0";
-      iframe.style.width = "800px";
-      iframe.style.height = "1200px";
+      iframe.style.width = "794px";
+      iframe.style.height = "1123px";
       iframe.style.border = "none";
       iframe.style.visibility = "hidden";
       document.body.appendChild(iframe);
@@ -191,23 +191,25 @@ export default function PdfExportDialog({ markdownContent, candidateName = "Cand
             <meta charset="utf-8" />
             <style>
               * { box-sizing: border-box; }
-              body {
+              html, body {
                 margin: 0;
                 padding: 0;
                 background-color: #ffffff !important;
                 color: #0f172a !important;
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                -webkit-font-smoothing: antialiased;
               }
-              #clean-export-container {
-                width: 800px;
+              .clean-mount-wrapper {
+                width: 794px;
+                min-height: 1123px;
                 background-color: #ffffff !important;
                 margin: 0 auto;
               }
             </style>
           </head>
           <body>
-            <div id="clean-export-container">
-              ${element.innerHTML}
+            <div class="clean-mount-wrapper">
+              ${element.outerHTML}
             </div>
           </body>
         </html>
@@ -215,24 +217,24 @@ export default function PdfExportDialog({ markdownContent, candidateName = "Cand
       iframeDoc.close();
 
       // Short delay for DOM rendering & font stabilization
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 250));
 
-      const target = iframeDoc.getElementById("clean-export-container");
+      const target = iframeDoc.getElementById("resume-export-sheet");
       if (!target) throw new Error("Failed to initialize PDF render target");
 
-      // 2. Render target via html2canvas inside the isolated iframe context
+      // 2. Render target via html2canvas inside the isolated iframe context at 2.5x retina quality
       const html2canvasModule = await import("html2canvas");
       const html2canvas = html2canvasModule.default || html2canvasModule;
 
       const canvas = await html2canvas(target, {
-        scale: 2,
+        scale: 2.5,
         useCORS: true,
         logging: false,
         backgroundColor: "#ffffff",
-        windowWidth: 800,
+        windowWidth: 794,
       });
 
-      // 3. Generate high-quality PDF via jsPDF
+      // 3. Generate high-quality PDF via jsPDF with 1-to-1 exact A4 proportions
       const jspdfModule = await import("jspdf");
       const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
 
@@ -240,33 +242,31 @@ export default function PdfExportDialog({ markdownContent, candidateName = "Cand
         orientation: "portrait",
         unit: "mm",
         format: "a4",
+        compress: true,
       });
 
-      const pdfWidth = pdf.internal.pageSize.getWidth(); // 210mm
-      const pdfHeight = pdf.internal.pageSize.getHeight(); // 297mm
-      const margin = 8; // 8mm margin
-      const contentWidth = pdfWidth - margin * 2;
-      const pageHeightUsable = pdfHeight - margin * 2;
-      const totalImgHeight = (canvas.height * contentWidth) / canvas.width;
+      const a4WidthMm = 210;
+      const a4HeightMm = 297;
+      const totalImgHeightMm = (canvas.height * a4WidthMm) / canvas.width;
 
       const imgData = canvas.toDataURL("image/jpeg", 0.98);
 
-      if (totalImgHeight <= pageHeightUsable) {
-        // Fits on single page
-        pdf.addImage(imgData, "JPEG", margin, margin, contentWidth, totalImgHeight, undefined, "FAST");
+      if (totalImgHeightMm <= a4HeightMm + 4) {
+        // Fits cleanly on 1 page with zero clipping
+        pdf.addImage(imgData, "JPEG", 0, 0, a4WidthMm, Math.min(totalImgHeightMm, a4HeightMm), undefined, "FAST");
       } else {
         // Multi-page slicing
-        let heightLeft = totalImgHeight;
-        let position = margin;
+        let heightLeft = totalImgHeightMm;
+        let position = 0;
 
-        pdf.addImage(imgData, "JPEG", margin, position, contentWidth, totalImgHeight, undefined, "FAST");
-        heightLeft -= pageHeightUsable;
+        pdf.addImage(imgData, "JPEG", 0, position, a4WidthMm, totalImgHeightMm, undefined, "FAST");
+        heightLeft -= a4HeightMm;
 
         while (heightLeft > 5) {
-          position -= pageHeightUsable;
+          position -= a4HeightMm;
           pdf.addPage();
-          pdf.addImage(imgData, "JPEG", margin, position, contentWidth, totalImgHeight, undefined, "FAST");
-          heightLeft -= pageHeightUsable;
+          pdf.addImage(imgData, "JPEG", 0, position, a4WidthMm, totalImgHeightMm, undefined, "FAST");
+          heightLeft -= a4HeightMm;
         }
       }
 

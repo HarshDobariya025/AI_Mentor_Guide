@@ -3,6 +3,7 @@ export function parseMarkdownResume(markdownContent, defaultName = "Candidate Na
   if (!markdownContent || typeof markdownContent !== "string") {
     return {
       name: defaultName,
+      headline: "",
       contact: { email: "", mobile: "", linkedin: "", twitter: "", location: "", links: [] },
       summary: "",
       skills: [],
@@ -25,6 +26,7 @@ export function parseMarkdownResume(markdownContent, defaultName = "Candidate Na
 
   const result = {
     name: defaultName,
+    headline: "",
     contact: {
       email: "",
       mobile: "",
@@ -42,7 +44,7 @@ export function parseMarkdownResume(markdownContent, defaultName = "Candidate Na
     rawContent: text,
   };
 
-  // 2. Extract Candidate Name
+  // 2. Extract Candidate Name & Headline
   const divNameMatch = text.match(/<div align=["']center["']>([^<]+)<\/div>/i);
   if (divNameMatch && divNameMatch[1].trim() && !divNameMatch[1].includes("@")) {
     result.name = divNameMatch[1].trim();
@@ -51,20 +53,40 @@ export function parseMarkdownResume(markdownContent, defaultName = "Candidate Na
     if (h1Match && h1Match[1].trim()) {
       result.name = h1Match[1].trim();
     } else {
-      const firstLine = rawLines
-        .map((l) => l.trim())
-        .find((l) => l.length > 0 && !l.startsWith("http") && !l.includes("@"));
+      const nonBlankIndices = [];
+      rawLines.forEach((l, idx) => {
+        const trimmed = l.trim();
+        if (trimmed.length > 0 && !trimmed.startsWith("http") && !trimmed.includes("@")) {
+          nonBlankIndices.push(idx);
+        }
+      });
 
-      if (
-        firstLine &&
-        firstLine.length < 50 &&
-        !firstLine.includes(":") &&
-        !firstLine.includes("|") &&
-        !firstLine.toLowerCase().startsWith("summary") &&
-        !firstLine.toLowerCase().startsWith("experience") &&
-        !firstLine.toLowerCase().startsWith("skill")
-      ) {
-        result.name = firstLine.replace(/^[#*\s]+|[#*\s]+$/g, "").trim();
+      if (nonBlankIndices.length > 0) {
+        const nameIdx = nonBlankIndices[0];
+        const lineText = rawLines[nameIdx].trim();
+        if (
+          lineText.length < 50 &&
+          !lineText.includes(":") &&
+          !lineText.includes("|") &&
+          !lineText.toLowerCase().startsWith("summary") &&
+          !lineText.toLowerCase().startsWith("experience") &&
+          !lineText.toLowerCase().startsWith("skill")
+        ) {
+          result.name = lineText.replace(/^[#*\s]+|[#*\s]+$/g, "").trim();
+
+          // Check if there is a professional headline on the very next line (e.g. "Full Stack Developer / Mobile App Developer")
+          if (nonBlankIndices.length > 1 && nonBlankIndices[1] === nameIdx + 1) {
+            const possibleHeadline = rawLines[nameIdx + 1].trim();
+            if (
+              possibleHeadline.length < 70 &&
+              !possibleHeadline.includes("@") &&
+              !possibleHeadline.toLowerCase().includes("skill") &&
+              !possibleHeadline.toLowerCase().includes("education")
+            ) {
+              result.headline = possibleHeadline;
+            }
+          }
+        }
       }
     }
   }
@@ -107,6 +129,7 @@ export function parseMarkdownResume(markdownContent, defaultName = "Candidate Na
     "competencies",
     "technologies",
     "core competencies",
+    "technical skills & competencies",
     "experience",
     "work experience",
     "employment history",
@@ -120,6 +143,7 @@ export function parseMarkdownResume(markdownContent, defaultName = "Candidate Na
     "selected projects",
     "key projects",
     "personal projects",
+    "key projects & initiatives",
     "achievements",
     "certifications",
     "awards",
@@ -261,10 +285,18 @@ function assignSection(heading, body, result) {
   }
 }
 
-// Helper to parse skills (supports categorized lines, bullets, or comma separated lists)
+// Helper to parse skills (normalizes broken line wraps and cleans bullets)
 function parseSkills(body) {
   if (!body) return [];
-  const rawLines = body
+
+  // Normalize broken line wraps like "Frontend \n Development"
+  const normalizedBody = body
+    .replace(/Frontend\s*\n\s*[-*•]?\s*Development/gi, "Frontend Development")
+    .replace(/Mobile\s*\n\s*[-*•]?\s*Development/gi, "Mobile Development")
+    .replace(/Backend\s*\n\s*[-*•]?\s*Development/gi, "Backend Development")
+    .replace(/Cloud\s*\n\s*[-*•]?\s*Technologies/gi, "Cloud Technologies");
+
+  const rawLines = normalizedBody
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
@@ -272,13 +304,16 @@ function parseSkills(body) {
   const skillsList = [];
 
   rawLines.forEach((line) => {
-    const cleanLine = line.replace(/^[-*•]\s*/, "").trim();
+    // Strip leading asterisks or dashes
+    const cleanLine = line.replace(/^[-*•]\s*/, "").replace(/^\*\s*/, "").trim();
+    if (!cleanLine) return;
+
     if (cleanLine.includes(" – ") || cleanLine.includes(": ") || cleanLine.includes(" - ")) {
       skillsList.push(cleanLine);
     } else if (cleanLine.includes(",")) {
       cleanLine
         .split(",")
-        .map((s) => s.trim())
+        .map((s) => s.trim().replace(/^[-*•]\s*/, ""))
         .filter(Boolean)
         .forEach((s) => skillsList.push(s));
     } else {
@@ -289,7 +324,7 @@ function parseSkills(body) {
   return skillsList;
 }
 
-// Helper to parse sub-entries within a section (supports H3, bullets, indented sub-bullets, dates)
+// Helper to parse sub-entries within a section (cleans bullets, extracts scores & dates)
 function parseSubEntries(body) {
   if (!body || !body.trim()) return [];
 
@@ -311,10 +346,11 @@ function parseSubEntries(body) {
     if (isH3 || isTopBullet || isBoldTitle) {
       if (currentEntry) entries.push(currentEntry);
 
-      let header = line.replace(/^(###|\*|-|•)\s+|\*\*/g, "").replace(/\*\*$/, "").trim();
+      let header = line.replace(/^\s*(###|\*|-|•)\s+|\*\*/g, "").replace(/\*\*$/, "").trim();
       let title = header;
       let organization = "";
       let dateRange = "";
+      const initialBullets = [];
 
       // Parse Date if enclosed in parens like (Mar '23) or (Jan '24 - Apr '24)
       const dateInParens = header.match(/\(([^)]*(?:19|20|'|\bPresent\b)[^)]*)\)$/);
@@ -332,7 +368,13 @@ function parseSubEntries(body) {
       } else if (header.includes(" | ")) {
         const parts = header.split(" | ");
         title = parts[0].trim();
-        organization = parts.slice(1).join(" | ").trim();
+        organization = parts[1].trim();
+        // If there are additional parts (e.g. "PR : 92.50%"), capture as score bullet
+        if (parts.length > 2) {
+          for (let p = 2; p < parts.length; p++) {
+            initialBullets.push(parts[p].trim());
+          }
+        }
       } else if (header.includes(" - ") && !dateRange) {
         const parts = header.split(" - ");
         title = parts[0].trim();
@@ -343,7 +385,7 @@ function parseSubEntries(body) {
         title,
         organization,
         dateRange,
-        bullets: [],
+        bullets: initialBullets,
         rawText: "",
       };
     } else if (currentEntry) {
@@ -355,15 +397,17 @@ function parseSubEntries(body) {
       if (isDate) {
         currentEntry.dateRange = line.replace(/^[–—\s*-]+|[–—\s*]+$/g, "").trim();
       } else {
-        const cleanBullet = line.replace(/^[-*•]\s*/, "").trim();
+        // Strip ANY leading whitespace, dashes, or asterisks
+        const cleanBullet = line.replace(/^\s*[-*•]+\s*/, "").replace(/^[*•-]\s*/, "").trim();
         if (cleanBullet) {
           currentEntry.bullets.push(cleanBullet);
         }
       }
     } else {
       // Freeform leading lines
+      const cleanLine = line.replace(/^\s*[-*•]+\s*/, "").trim();
       currentEntry = {
-        title: line,
+        title: cleanLine,
         organization: "",
         dateRange: "",
         bullets: [],

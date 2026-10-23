@@ -7,27 +7,35 @@ import {
   AlertTriangle,
   Download,
   Edit,
+  FileSearch,
   Loader2,
   Monitor,
   Save, 
+  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import MDEditor from "@uiw/react-md-editor";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { saveResume } from "@/actions/resume";
 import { EntryForm } from "./entry-form";
+import AtsScanner from "./ats-scanner";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
 import { entriesToMarkdown } from "@/app/lib/helper";
 import { resumeSchema } from "@/app/lib/schema";
 // import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
-export default function ResumeBuilder({ initialContent }) {
-  const [activeTab, setActiveTab] = useState("edit");
-  const [previewContent, setPreviewContent] = useState(initialContent);
+export default function ResumeBuilder({ initialContent, initialResume, initialTab = "edit" }) {
+  const resumeData = initialResume || (initialContent ? { content: initialContent } : null);
+  const rawContent = resumeData?.content || initialContent || "";
+  const [activeTab, setActiveTab] = useState(initialTab || (rawContent ? "preview" : "edit"));
+  const [previewContent, setPreviewContent] = useState(rawContent);
+  const [atsScore, setAtsScore] = useState(resumeData?.atsScore ?? null);
+  const [atsFeedback, setAtsFeedback] = useState(resumeData?.feedback ?? null);
   const { user } = useUser();
   const [resumeMode, setResumeMode] = useState("preview");
 
@@ -60,8 +68,12 @@ export default function ResumeBuilder({ initialContent }) {
   const formValues = watch();
 
   useEffect(() => {
-    if (initialContent) setActiveTab("preview");
-  }, [initialContent]);
+    if (initialTab && initialTab !== "edit") {
+      setActiveTab(initialTab);
+    } else if (rawContent) {
+      setActiveTab("preview");
+    }
+  }, [initialTab]);
 
   // Update preview content when form values change
   useEffect(() => {
@@ -148,11 +160,37 @@ export default function ResumeBuilder({ initialContent }) {
 
   return (
     <div data-color-mode="light" className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-2">
-        <h1 className="text-3xl font-bold md:text-5xl lg:text-5xl xl:text-5xl bg-gradient-to-b from-gray-500 via-gray-200 to-gray-500 text-transparent bg-clip-text">
-          Resume Builder
-        </h1>
-        <div className="space-x-2">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-3xl font-bold md:text-5xl lg:text-5xl xl:text-5xl bg-gradient-to-b from-gray-500 via-gray-200 to-gray-500 text-transparent bg-clip-text">
+              Resume Builder
+            </h1>
+            {atsScore !== null && (
+              <Badge
+                variant="outline"
+                onClick={() => setActiveTab("ats")}
+                className="cursor-pointer hover:bg-accent transition-all flex items-center gap-1.5 py-1 px-3 text-xs font-semibold border-primary/30 text-primary"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                ATS Score: {atsScore}%
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Build your resume, scan against target job descriptions, and export markdown notes.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => setActiveTab("ats")}
+            className="flex items-center gap-1.5"
+          >
+            <FileSearch className="h-4 w-4 text-primary" />
+            <span className="hidden sm:inline">ATS Scanner</span>
+          </Button>
           <Button
             variant="destructive"
             onClick={onSubmit}
@@ -170,26 +208,25 @@ export default function ResumeBuilder({ initialContent }) {
               </>
             )}
           </Button>
-          {/* <Button onClick={generatePDF} disabled={isGenerating}>
-            {isGenerating ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Generating PDF...
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4" />
-                Download PDF
-              </>
-            )}
-          </Button> */}
         </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList>
-          <TabsTrigger value="edit">Form</TabsTrigger>
-          <TabsTrigger value="preview">Markdown</TabsTrigger>
+        <TabsList className="grid grid-cols-3 max-w-md">
+          <TabsTrigger value="edit" className="flex items-center gap-1.5 font-medium">
+            <Edit className="h-4 w-4" /> Form
+          </TabsTrigger>
+          <TabsTrigger value="preview" className="flex items-center gap-1.5 font-medium">
+            <Monitor className="h-4 w-4" /> Markdown
+          </TabsTrigger>
+          <TabsTrigger value="ats" className="flex items-center gap-1.5 font-medium">
+            <Sparkles className="h-4 w-4 text-primary" /> ATS Matcher
+            {atsScore !== null && (
+              <span className="ml-1 text-[11px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-bold">
+                {atsScore}%
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="edit">
@@ -412,6 +449,19 @@ export default function ResumeBuilder({ initialContent }) {
               />
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="ats" className="space-y-4">
+          <AtsScanner
+            resumeContent={previewContent}
+            initialScore={atsScore}
+            initialFeedback={atsFeedback}
+            onScoreUpdated={(newScore, newFeedback) => {
+              setAtsScore(newScore);
+              setAtsFeedback(newFeedback);
+            }}
+            onNavigateToEdit={() => setActiveTab("edit")}
+          />
         </TabsContent>
       </Tabs>
     </div>

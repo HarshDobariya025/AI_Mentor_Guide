@@ -6,7 +6,41 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { revalidatePath } from "next/cache";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+async function generateWithRetryAndFallback(prompt) {
+  const modelsToTry = [
+    "gemini-1.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash",
+    "gemini-1.5-pro",
+  ];
+
+  let lastError = null;
+
+  for (const modelName of modelsToTry) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const candidateModel = genAI.getGenerativeModel({ model: modelName });
+        const result = await candidateModel.generateContent(prompt);
+        return result;
+      } catch (err) {
+        lastError = err;
+        const errMsg = err?.message || "";
+        console.warn(`[Roadmap AI Fallback] ${modelName} error: ${errMsg}`);
+
+        if (errMsg.includes("503") || errMsg.includes("high demand") || errMsg.includes("429")) {
+          if (attempt === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 1000));
+            continue;
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  throw new Error(`AI service busy. Please try again. (${lastError?.message || "Service unavailable"})`);
+}
 
 export async function generateCareerRoadmap({ targetRole, targetLevel, timeframe, additionalNotes }) {
   const { userId } = await auth();
@@ -67,7 +101,7 @@ Use this structure:
 Ensure you provide at least 3-4 phases in checklistData, each with 3-5 concrete actionable items.
 `;
 
-  const result = await model.generateContent(prompt);
+  const result = await generateWithRetryAndFallback(prompt);
   const response = result.response;
   const text = response.text();
   const cleanedText = text.replace(/```(?:json)?\n?/g, "").trim();

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 import { Button } from "./ui/button";
-import { ChevronDown, FileText, LayoutDashboard, PenBox, StarsIcon } from "lucide-react";
+import { ChevronDown, FileSearch, FileText, LayoutDashboard, PenBox, StarsIcon } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,26 +41,32 @@ const Header = async () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuItem>
-                  <Link href={"/resume"} className="flex items-center gap-2">
+                <DropdownMenuItem asChild>
+                  <Link href={"/resume"} className="flex items-center gap-2 cursor-pointer">
                       <FileText className="h-4 w-4"/>
                       Build Resume
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link href={"/ai-cover-letter"} className="flex items-center gap-2">
+                <DropdownMenuItem asChild>
+                  <Link href={"/resume?tab=ats"} className="flex items-center gap-2 cursor-pointer">
+                      <FileSearch className="h-4 w-4 text-primary"/>
+                      ATS Resume Scanner
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={"/ai-cover-letter"} className="flex items-center gap-2 cursor-pointer">
                       <PenBox className="h-4 w-4"/>
                       Cover Letter
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link href={"/interview"} className="flex items-center gap-2">
+                <DropdownMenuItem asChild>
+                  <Link href={"/interview"} className="flex items-center gap-2 cursor-pointer">
                       <FileText className="h-4 w-4"/>
                       Interview Prep
                   </Link>
                 </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link href={"/roadmap"} className="flex items-center gap-2">
+                <DropdownMenuItem asChild>
+                  <Link href={"/roadmap"} className="flex items-center gap-2 cursor-pointer">
                       <StarsIcon className="h-4 w-4 text-primary"/>
                       Career Roadmap
                   </Link>

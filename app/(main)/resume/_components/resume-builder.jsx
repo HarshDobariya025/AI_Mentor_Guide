@@ -23,11 +23,11 @@ import { Input } from "@/components/ui/input";
 import { saveResume } from "@/actions/resume";
 import { EntryForm } from "./entry-form";
 import AtsScanner from "./ats-scanner";
+import PdfExportDialog from "./resume-templates/pdf-export-dialog";
 import useFetch from "@/hooks/use-fetch";
 import { useUser } from "@clerk/nextjs";
 import { entriesToMarkdown } from "@/app/lib/helper";
 import { resumeSchema } from "@/app/lib/schema";
-// import html2pdf from "html2pdf.js/dist/html2pdf.min.js";
 
 export default function ResumeBuilder({ initialContent, initialResume, initialTab = "edit" }) {
   const resumeData = initialResume || (initialContent ? { content: initialContent } : null);
@@ -122,27 +122,7 @@ export default function ResumeBuilder({ initialContent, initialResume, initialTa
       .join("\n\n");
   };
 
-  const [isGenerating, setIsGenerating] = useState(false);
 
-  const generatePDF = async () => {
-    setIsGenerating(true); 
-    try {
-      const element = document.getElementById("resume-pdf");
-      const opt = {
-        margin: [15, 15],
-        filename: "resume.pdf",
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 2 },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
-
-      await html2pdf().set(opt).from(element).save();
-    } catch (error) {
-      console.error("PDF generation error:", error);
-    } finally {
-      setIsGenerating(false);
-    }
-  };
 
   const onSubmit = async (data) => {
     try {
@@ -181,7 +161,11 @@ export default function ResumeBuilder({ initialContent, initialResume, initialTa
             Build your resume, scan against target job descriptions, and export markdown notes.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <PdfExportDialog
+            markdownContent={previewContent}
+            candidateName={user?.fullName || "Candidate"}
+          />
           <Button
             variant="outline"
             type="button"

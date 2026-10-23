@@ -33,10 +33,28 @@ const TEMPLATES = [
     description: "Clean sans-serif typography, accent borders, and structured category skill sets.",
   },
   {
+    id: "sidebar",
+    name: "Modern Split-Column",
+    tag: "Tech & Creative",
+    description: "Two-column layout with left sidebar for skills & contact, and main column for projects.",
+  },
+  {
+    id: "silicon",
+    name: "Silicon Valley Tech",
+    tag: "FAANG & Startups",
+    description: "Clean developer aesthetic with monospace dates, tech tags, and terminal section dividers.",
+  },
+  {
     id: "classic",
     name: "Executive Classic",
     tag: "Corporate & Ivy League",
     description: "Timeless serif styling, centered header, and horizontal divider rules.",
+  },
+  {
+    id: "harvard",
+    name: "Harvard / Wall Street",
+    tag: "Consulting & Finance",
+    description: "Prestigious conservative format with right-aligned dates and authoritative typography.",
   },
   {
     id: "compact",
@@ -51,6 +69,8 @@ const ACCENT_COLORS = [
   { id: "navy", name: "Corporate Navy", hex: "#1e3a8a" },
   { id: "emerald", name: "Tech Emerald", hex: "#065f46" },
   { id: "burgundy", name: "Executive Burgundy", hex: "#881337" },
+  { id: "royal", name: "Royal Cobalt", hex: "#2563eb" },
+  { id: "violet", name: "Modern Violet", hex: "#7c3aed" },
 ];
 
 export default function PdfExportDialog({ markdownContent, candidateName = "Candidate" }) {
